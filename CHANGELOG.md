@@ -28,6 +28,12 @@ and semantic versioning.
 - 外联仅限渠道官方域名白名单（https + host 精确匹配 + 不跟随重定向 + 超时/大小上限）。
 - 全部 DOM 注入以 `.cd-*` 根类门控，fiber 卸载即移除（可逆）。
 
+## [Unreleased]
+
+### Added
+
+- README 安装章节补发布形态：`dsh plugin add github:lcohvne-tomorin/dsh-context-dashboard#<v0.2.0 全 hash>`（§4.4 锁 40 位 commit）。
+
 ## [0.2.0] - 2026-09-13
 
 ### Fixed

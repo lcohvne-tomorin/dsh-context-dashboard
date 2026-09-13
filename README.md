@@ -39,6 +39,15 @@
 
 ## 安装
 
+### 发布形态（GitHub，§13.2）
+
+```bash
+# git 依赖按 §4.4 锁死完整 40 位 commit hash（v0.2.0）：
+pnpm dsh plugin --profile <profile> add github:lcohvne-tomorin/dsh-context-dashboard#bfc7be2c8901f78eb08520f8d363554798994eec
+```
+
+### 开发裸包安装
+
 开发裸包安装（复制到 profile 的 `node_modules` 并追加 patch 块）。
 
 ```bash
