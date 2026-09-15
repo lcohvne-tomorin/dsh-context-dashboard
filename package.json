@@ -1,6 +1,6 @@
 {
   "name": "dsh-context-dashboard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sidebar context/billing dashboard for DeepSeek Harness: live context ring, per-session usage & spend, account balance and token-plan quota readouts across configured LLM channels.",
   "license": "MIT",
   "private": false,

@@ -28,11 +28,11 @@
 | 20 | §8.4 图标全内联 SVG 20×20，无 emoji 图标 | 必须 | ✅ |
 | 21 | §8.5 文字仅白黑灰，颜色只在图标/按钮背景边框 | 必须 | ✅ |
 | 22 | §8.7 错误提示 3–5s（成功约 3s） | 必须 | ✅（错误 5s/成功 3s 实现；设置页 toast 用时序 effect） |
-| 23 | §9.2 版本三处一致 | 必须 | ✅（package.json 0.2.0 = README = CHANGELOG） |
+| 23 | §9.2 版本三处一致 | 必须 | ✅（package.json 0.3.0 = README = CHANGELOG） |
 | 24 | §10.1 README 固定章节序 | 必须 | ✅ |
 | 25 | §10.4 CHANGELOG 规范 | 必须 | ✅ |
 | 26 | §11.1 停用/卸载运行时回滚 | 必须 | 待装验（disposer 路径已实现） |
-| 27 | §12.1 五项最低验证（加载无报错/重复路由、真机功能、可逆、写端点鉴权实测） | 必须 | 待装验（使用者执行；node --check 与 12 例单测已在工作区通过） |
+| 27 | §12.1 五项最低验证（加载无报错/重复路由、真机功能、可逆、写端点鉴权实测） | 必须 | 待装验（使用者执行；node --check、20 例单测与 11 例 host 集成测试已在工作区通过） |
 | 28 | §13.1 发布仓库打 dsh-plugin topic | 必须 | ✅（0.2.0 发布时已打） |
 | — | §5.6/§8.3/§9.4 等「应当」项 | 应当 | ☐ 附理由：§5.6 高频写仅 fold 记忆低频，无需额外防抖；§8.3 控件限于开关/输入/按钮族；§9.4 装机后记一条兼容性结论于 CHANGELOG |
 
@@ -40,4 +40,5 @@
 
 - `node --check`：lib/index.js、lib/client.js、lib/httpkit.js、lib/usage.js、lib/pricing.js、lib/storage.js 全部通过（零语法错）。
 - 单测：`tests/unit.test.mjs` 20/20 通过（buckets/费用/窗口/简写/计价/峰谷/渠道识别）。
+- host 集成测试：`tests/host.integration.test.mjs` 11/11 通过（路由鉴权/聚合/上下文口径/余额/动态渠道）。
 - （沙箱内 `node --test` 子进程受限，改以 `node tests/unit.test.mjs` 同进程直跑。）

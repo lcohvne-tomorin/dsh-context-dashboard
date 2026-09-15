@@ -3,36 +3,31 @@
 All notable changes to dsh-context-dashboard follow [Keep a Changelog](https://keepachangelog.com/)
 and semantic versioning.
 
-## [0.1.0] - 2026-09-03
-
-开发骨架首版（尚未真机验收，按 §12 待使用者装验）。
-
-### Added
-
-- 侧边栏底部状态座（`sidebar.footer.action`）：折叠 pill（上下文环形 + `128K/1M`）、
-  点击平滑向上展开面板；rail 窄条态被动环形指示。
-- 展开面板按渠道计费形态分支：按量（渠道/模型/上下文/本次花费/账户余额）与
-  Token 套餐（渠道/模型/上下文/本次花费/本次使用额度/滚动/每周/每月用量）。
-- host 半用量采集：订阅 `session/event`，由 `request/header`（渠道 route）与
-  `assistant/message`（usage/contextWindow）提取记录，落盘 `history.jsonl`（bounded）。
-- 本地时窗聚合（滚动 N 天 / 自然周 / 自然月）；本次会话累计；四桶单价费用计算。
-- 内置计价目录（含来源 URL/核对日期；官方查无此款标估算 `verified:false`）+ 设置页单价覆盖。
-- 余额查询框架：白名单域名 HTTPS 守卫、env 只读 key、mock 测试接缝（`DSH_CD_BALANCE_MOCK`）；
-  官方接口规格 PENDING。
-- 设置分区（8 项）与中英双语；安全端点（回环/同源/CSRF/限流/体上限/错误泛化）。
-- 纯逻辑单测 12 例（usage/pricing）。
-
-### Security
-
-- key 仅从环境变量读取，不落盘/不进日志/不下发 client。
-- 外联仅限渠道官方域名白名单（https + host 精确匹配 + 不跟随重定向 + 超时/大小上限）。
-- 全部 DOM 注入以 `.cd-*` 根类门控，fiber 卸载即移除（可逆）。
-
 ## [Unreleased]
 
+### Notes
+
+- 等待权威价校准（qwen/glm 系列与 deepseek 4.1 预览款）；等待 qwen/opencode 余额接口规格。
+
+## [0.3.0] - 2026-09-15
+
 ### Added
 
-- README 安装章节补发布形态：`dsh plugin add github:lcohvne-tomorin/dsh-context-dashboard#<v0.2.0 全 hash>`（§4.4 锁 40 位 commit）。
+- README 安装章节补发布形态：`dsh plugin add github:lcohvne-tomorin/dsh-context-dashboard#<全 hash>`（§4.4 锁 40 位 commit）。
+- **余额查询渠道动态化（不预设）**：设置页「余额查询」与 `/config` 的渠道清单改为
+  host 半经 `ctx.llm.listProviders()` 动态枚举（与模型选择器同源），显示名取选择器
+  渠道名；llm 服务不可用时回退内置 CHANNELS（兼容旧行为）。余额刷新与 `/status`
+  聚合同样只覆盖动态渠道；单价覆盖表的渠道下拉一致跟随。
+- **密钥配置不限预设渠道**：`balance.keys` 接受任意合法渠道 id（白名单字符集），
+  DEFAULTS 不再预置三个渠道；未显式配置的渠道回退**推荐 env 名**（预置映射优先，
+  其余按渠道 id 派生 `<CHANNEL>_API_KEY`），deepseek 等保持开箱即用。
+  设置页输入框占位符即推荐名；无可用渠道时显示指引文案。
+- 集成测试 +1（动态渠道枚举/预设消失/非预设渠道持久化/余额聚合口径）。
+
+### Changed
+
+- 余额分组说明文案精简：删除「仅在设置的白名单域名内出网。渠道清单与模型选择器同步，
+  不预设渠道。」（中英同步；渠道口径说明改由 README 承载）。
 
 ## [0.2.0] - 2026-09-13
 
@@ -98,4 +93,27 @@ and semantic versioning.
 - **折叠态上下文环与 Settings 按钮对齐**：折叠 pill 内的上下文环由 22px 改为 16px，
   与设置触发器的齿轮图标同尺寸同位，构成整齐的左列（环、齿轮、各自标签起点对齐）。
 
-- 等待权威价校准（qwen/glm 系列与 deepseek 4.1 预览款）；等待 qwen/opencode 余额接口规格。
+## [0.1.0] - 2026-09-03
+
+开发骨架首版（尚未真机验收，按 §12 待使用者装验）。
+
+### Added
+
+- 侧边栏底部状态座（`sidebar.footer.action`）：折叠 pill（上下文环形 + `128K/1M`）、
+  点击平滑向上展开面板；rail 窄条态被动环形指示。
+- 展开面板按渠道计费形态分支：按量（渠道/模型/上下文/本次花费/账户余额）与
+  Token 套餐（渠道/模型/上下文/本次花费/本次使用额度/滚动/每周/每月用量）。
+- host 半用量采集：订阅 `session/event`，由 `request/header`（渠道 route）与
+  `assistant/message`（usage/contextWindow）提取记录，落盘 `history.jsonl`（bounded）。
+- 本地时窗聚合（滚动 N 天 / 自然周 / 自然月）；本次会话累计；四桶单价费用计算。
+- 内置计价目录（含来源 URL/核对日期；官方查无此款标估算 `verified:false`）+ 设置页单价覆盖。
+- 余额查询框架：白名单域名 HTTPS 守卫、env 只读 key、mock 测试接缝（`DSH_CD_BALANCE_MOCK`）；
+  官方接口规格 PENDING。
+- 设置分区（8 项）与中英双语；安全端点（回环/同源/CSRF/限流/体上限/错误泛化）。
+- 纯逻辑单测 12 例（usage/pricing）。
+
+### Security
+
+- key 仅从环境变量读取，不落盘/不进日志/不下发 client。
+- 外联仅限渠道官方域名白名单（https + host 精确匹配 + 不跟随重定向 + 超时/大小上限）。
+- 全部 DOM 注入以 `.cd-*` 根类门控，fiber 卸载即移除（可逆）。

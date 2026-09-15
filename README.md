@@ -2,9 +2,9 @@
 
 上下文仪表盘（Context / Billing Dashboard）· DSH 侧边栏插件
 
-> **Version: 0.2.0** · [CHANGELOG](CHANGELOG.md) · License: MIT
-> 状态：**v0.2.0** —— 逻辑层单测 20/20 通过；已在真机 profile（`~/.dsh/profiles/web`
-> 裸包挂载）安装运行，设置页 Hooks 崩溃已修复（见 CHANGELOG 0.2.0）。
+> **Version: 0.3.0** · [CHANGELOG](CHANGELOG.md) · License: MIT
+> 状态：**v0.3.0** —— 单测 20/20、host 集成测试 11/11；已在真机 profile
+> （`~/.dsh/profiles/web` 裸包挂载）安装运行；设置页余额渠道随模型选择器动态枚举。
 
 ## 功能
 
@@ -34,8 +34,8 @@
     `state-warn-primary` / `label-tertiary`），在各主题下都能正常显色。
 - 计价目录内置并可在设置页覆盖；官方查无此款的模型先标「估算」并等待校准。
 - 设置分区（设置 → 上下文仪表盘）8 项：折叠默认态+记忆、窄栏环形开关、余额开关与
-  密钥来源（只读环境变量）、单价覆盖表、显示货币与数字简写、统计窗口与聚合范围、
-  上下文警示阈值。界面中英双语自动跟随。
+  密钥来源（渠道清单与模型选择器同步、动态枚举，密钥只读环境变量）、单价覆盖表、
+  显示货币与数字简写、统计窗口与聚合范围、上下文警示阈值。界面中英双语自动跟随。
 
 ## 安装
 
@@ -73,9 +73,11 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
   `GET https://api.deepseek.com/user/balance`（面板显示 `¥` 余额与明细）；其余渠道仍为
   PENDING，显示「余额暂不可用」。测试可用 `DSH_CD_BALANCE_MOCK=1` 驱动模拟余额
   （仅测试接缝，非生产路径）。
-- **密钥来源**：先查 DSH 凭据库（`credentials` 服务的 ref，即设置页里的 env 名，默认
-  `DEEPSEEK_API_KEY` / `QWEN_TOKEN_PLAN_CN_API_KEY` / `OPENCODE_GO_FULL_API_KEY`），
-  查不到再回退环境变量；**只用于 Authorization 头，不落盘、不进日志、不下发界面**。
+- **密钥来源**：设置页「余额查询」的渠道清单**与模型选择器同源**（host 半经
+  `llm.listProviders()` 动态枚举，不预设渠道；llm 服务不可用时回退内置清单），
+  每个渠道一个 env 名输入框（占位符即推荐名）。取 key 先查 DSH 凭据库（`credentials`
+  服务的 ref，即所填 env 名；未填回退推荐名如 `DEEPSEEK_API_KEY`），查不到再回退
+  环境变量；**只用于 Authorization 头，不落盘、不进日志、不下发界面**。
 - 计价：默认取内置目录；设置页「单价覆盖表」优先，目录行只读展示（标注 官方/估算）。
 
 ### 计价目录（需求 3：费用以模型提供商官方文档为准）

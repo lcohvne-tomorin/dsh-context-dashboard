@@ -49,12 +49,15 @@ let projectionRegistry = null
 let credentialsService = null
 /** 可选：模拟 ctx.sessions（hint 指定的「当前会话」解析成活体 Session）。 */
 let sessionStore = null
+/** 可选：模拟 ctx.llm（模型选择器的渠道权威来源；不设则 host 半回退内置 CHANNELS）。 */
+let llmService = null
 const ctx = {
   get(name) {
     if (name === 'webServer') return server
     if (name === 'sessionProjections') return projectionRegistry
     if (name === 'credentials') return credentialsService
     if (name === 'sessions') return sessionStore
+    if (name === 'llm') return llmService
     return undefined
   },
   on(type, fn) { if (type === 'session/event') eventHandler = fn; return () => {} },
@@ -282,4 +285,41 @@ test('write endpoint accepts valid CSRF and persists fold/config', async () => {
   assert.equal(r.json.collapsed, true)
   const cfg2 = await call('GET', '/dsh-context-dashboard/config')
   assert.equal(cfg2.json.fold.collapsed, true)
+})
+
+test('channels are dynamic from llm.listProviders (no preseed)', async () => {
+  // 无 llm 服务 → 回退内置 CHANNELS（旧行为，保持兼容）
+  const fb = await call('GET', '/dsh-context-dashboard/config')
+  assert.ok(fb.json.channels['deepseek-official'])
+
+  llmService = {
+    listProviders: () => [
+      { id: 'my-gateway', name: 'My Gateway' },
+      { id: 'deepseek-official', name: 'DeepSeek Official' },
+    ],
+  }
+  try {
+    const r = await call('GET', '/dsh-context-dashboard/config')
+    const ch = r.json.channels
+    assert.ok(ch['my-gateway'], '模型选择器渠道列出')
+    assert.equal(ch['my-gateway'].kind, 'unknown')
+    assert.equal(ch['my-gateway'].display, 'My Gateway')
+    assert.equal(ch['my-gateway'].suggestEnv, 'MY_GATEWAY_API_KEY')
+    assert.equal(ch['qwen-token-plan-cn'], undefined, '不在选择器里的预设渠道不再出现')
+
+    // 非预设渠道的密钥配置可持久化（storage 不再限死 3 渠道白名单）
+    const nextCfg = JSON.parse(JSON.stringify(r.json.config))
+    nextCfg.balance.keys = { 'my-gateway': { mode: 'env', envName: 'GATEWAY_SECRET' } }
+    const post = await call('POST', '/dsh-context-dashboard/config', { 'x-dsh-cd-csrf': r.json.csrf }, { config: nextCfg })
+    assert.equal(post.json.config.balance.keys['my-gateway'].envName, 'GATEWAY_SECRET')
+
+    // 余额聚合只覆盖动态渠道
+    const s = await call('GET', '/dsh-context-dashboard/status')
+    assert.ok(s.json.balances['my-gateway'])
+    assert.equal(s.json.balances['my-gateway'].reason, 'no-balance-api')
+    assert.ok(s.json.balances['deepseek-official'])
+    assert.equal(s.json.balances['qwen-token-plan-cn'], undefined)
+  } finally {
+    llmService = null
+  }
 })
