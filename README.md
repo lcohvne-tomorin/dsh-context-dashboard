@@ -127,8 +127,9 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
 - host 集成测试：`node tests/host.integration.test.mjs`（mock ctx + webServer）。
 - 真机日志回放：`node tests/replay-live-log.mjs <session.jsonl.zstd>`——把真实会话
   事件流喂给 host 半并打印 `/status`，用于核对上下文/聚合口径（多帧 zstd 自动拆帧）。
-- 规范：开发/修改按 `PLUGIN-STANDARD.md` 执行，交付前过 §12 验收清单（见
-  `ACCEPTANCE.md`）。
+- 规范：开发/修改按工作区内的 `PLUGIN-STANDARD.md` 执行，交付前过 §12 验收清单。
+  验收清单（`ACCEPTANCE.md`）属工作区内部交付物，**不随本仓库与 npm 包发布**（已列入
+  `.gitignore`）。
 
 ## 卸载
 

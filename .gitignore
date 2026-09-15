@@ -1,3 +1,6 @@
 node_modules/
 *.log
 .DS_Store
+
+# 工作区内部的 §12 验收清单：保留在本地，不随仓库/包发布
+ACCEPTANCE.md

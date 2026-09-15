@@ -5,6 +5,12 @@ and semantic versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- `ACCEPTANCE.md`（§12 验收清单）不再随仓库/包发布：保留为工作区内部交付物并列入
+  `.gitignore`；README「开发」章节相应说明。已被发布的历史提交仍含该文件（无敏感
+  内容，且历史重写会使 §4.4 锁定的安装 hash 失效，故不重写）。
+
 ### Notes
 
 - 等待权威价校准（qwen/glm 系列与 deepseek 4.1 预览款）；等待 qwen/opencode 余额接口规格。
