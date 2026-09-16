@@ -43,8 +43,8 @@
 ### 发布形态（GitHub，§13.2）
 
 ```bash
-# git 依赖按 §4.4 锁死完整 40 位 commit hash（v0.3.0，main 最新提交，已不含 ACCEPTANCE.md）：
-pnpm dsh plugin --profile <profile> add github:lcohvne-tomorin/dsh-context-dashboard#b34c488e01cb0e3fede4dfd81dc16e316fd50bbd
+# git 依赖按 §4.4 锁死完整 40 位 commit hash（v0.3.1 发布提交）：
+pnpm dsh plugin --profile <profile> add github:lcohvne-tomorin/dsh-context-dashboard#4fdf5f4109132fe10496dc8785c15d7e31786c5e
 ```
 
 ### 开发裸包安装
