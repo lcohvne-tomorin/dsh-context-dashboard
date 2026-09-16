@@ -323,3 +323,45 @@ test('channels are dynamic from llm.listProviders (no preseed)', async () => {
     llmService = null
   }
 })
+
+test('config exposes live models and catalog rows for newly added models', async () => {
+  // 无 llm 服务：models=null，目录只有内置行（旧行为）
+  const fb = await call('GET', '/dsh-context-dashboard/config')
+  assert.equal(fb.json.models, null)
+  assert.ok(fb.json.catalog.every((r) => r.live === false))
+
+  llmService = {
+    listProviders: () => [{ id: 'my-gateway', name: 'My Gateway' }],
+    listModels: async (id) => (id === 'my-gateway'
+      ? [{ id: 'brand-new-model', name: 'Brand New Model' }, { id: 'another-model', name: 'Another Model' }]
+      : []),
+  }
+  try {
+    const r = await call('GET', '/dsh-context-dashboard/config')
+    // 1) 模型清单随模型选择器（llm.listModels）动态枚举
+    assert.deepEqual(r.json.models['my-gateway'], [
+      { id: 'brand-new-model', name: 'Brand New Model' },
+      { id: 'another-model', name: 'Another Model' },
+    ])
+    // 2) 未收录、又无兜底价的渠道也要出行（否则永远无法为它录入覆盖价）
+    const row = r.json.catalog.find((x) => x.channel === 'my-gateway' && x.model === 'brand-new-model')
+    assert.ok(row, 'live-only model row present')
+    assert.equal(row.live, true)
+    assert.equal(row.rates, null)
+    assert.equal(row.source, 'unavailable')
+
+    // 3) 录入覆盖价后，目录行反映覆盖值（override 优先，source/verified 更新）
+    const nextCfg = JSON.parse(JSON.stringify(r.json.config))
+    nextCfg.priceOverrides = { 'my-gateway/brand-new-model': { input: 1.5, cacheRead: 0.15, cacheWrite: 1.5, output: 6 } }
+    const post = await call('POST', '/dsh-context-dashboard/config', { 'x-dsh-cd-csrf': r.json.csrf }, { config: nextCfg })
+    assert.equal(post.status, 200)
+    const r2 = await call('GET', '/dsh-context-dashboard/config')
+    const row2 = r2.json.catalog.find((x) => x.channel === 'my-gateway' && x.model === 'brand-new-model')
+    assert.equal(row2.rates.input, 1.5)
+    assert.equal(row2.rates.output, 6)
+    assert.equal(row2.source, 'override')
+    assert.equal(row2.verified, true)
+  } finally {
+    llmService = null
+  }
+})

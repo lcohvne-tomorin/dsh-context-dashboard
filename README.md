@@ -2,9 +2,10 @@
 
 上下文仪表盘（Context / Billing Dashboard）· DSH 侧边栏插件
 
-> **Version: 0.3.0** · [CHANGELOG](CHANGELOG.md) · License: MIT
-> 状态：**v0.3.0** —— 单测 20/20、host 集成测试 11/11；已在真机 profile
-> （`~/.dsh/profiles/web` 裸包挂载）安装运行；设置页余额渠道随模型选择器动态枚举。
+> **Version: 0.3.1** · [CHANGELOG](CHANGELOG.md) · License: MIT
+> 状态：**v0.3.1** —— 单测 21/21、host 集成测试 12/12；已在真机 profile
+> （`~/.dsh/profiles/web` 裸包挂载）安装运行；设置页的**渠道与模型清单均随模型选择器动态枚举**
+> （新加的模型可直接录入单价覆盖）。
 
 ## 功能
 
@@ -78,7 +79,10 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
   每个渠道一个 env 名输入框（占位符即推荐名）。取 key 先查 DSH 凭据库（`credentials`
   服务的 ref，即所填 env 名；未填回退推荐名如 `DEEPSEEK_API_KEY`），查不到再回退
   环境变量；**只用于 Authorization 头，不落盘、不进日志、不下发界面**。
-- 计价：默认取内置目录；设置页「单价覆盖表」优先，目录行只读展示（标注 官方/估算）。
+- 计价：默认取内置目录；设置页「单价覆盖表」优先，目录行只读展示（标注 官方/估算/未定价）。
+  **覆盖表的渠道与模型清单均与模型选择器同源**（host 半经 `llm.listProviders()` /
+  `llm.listModels()` 动态枚举），因此你新加的模型可以直接选到并录入单价；目录里的旧款
+  同时保留，便于预置价格。
 
 ### 计价目录（需求 3：费用以模型提供商官方文档为准）
 
@@ -94,6 +98,10 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
 `deepseek-official`（按量 + 峰谷，DeepSeek 官方 API 路由）。渠道不在表内时仪表盘显示
 「未知渠道」且费用为 `–`；新增渠道只需在 `lib/pricing.js` 的 `CHANNELS` / `CATALOG` /
 `CHANNEL_FALLBACK` 三处补条目（峰谷渠道再加 `peakSchedule` + `ratesOffPeak`）。
+
+> 不补目录也能用：设置页只读目录表会自动把「模型选择器里有、内置目录里没有」的模型列出来
+> （按当前生效价展示，无兜底价的渠道标「未定价」），你在「单价覆盖表」为它录入单价即可，
+> 面板随即按覆盖价计费（覆盖表单一口径、不分峰谷）。
 
 ## 权限与影响声明（安装前审查）
 

@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as usage from '../lib/usage.js'
 import * as pricing from '../lib/pricing.js'
+import * as storage from '../lib/storage.js'
 
 test('bucketsOf tolerates missing/invalid fields', () => {
   assert.deepEqual(usage.bucketsOf(undefined), { inputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 })
@@ -236,4 +237,21 @@ test('resolvePrice prefers override then catalog then fallback', () => {
   assert.equal(r3.fallback, true)
   const r4 = pricing.resolvePrice('nope', 'x', {})
   assert.equal(r4.price, null)
+})
+
+test('sanitizeOverrides keeps real model ids and rejects unsafe keys', () => {
+  const good = storage.sanitizeOverrides({
+    'deepseek-official/deepseek-v4.1-flash-expires-on-0910': { input: 3, cacheRead: 0.1, cacheWrite: 3, output: 9 },
+    'my-gateway/vendor:model+preview@2026': { input: 1, cacheRead: 0, cacheWrite: 1, output: 2 },
+    'my-gateway/negative': { input: -1, cacheRead: 0, cacheWrite: 0, output: 0 },
+    'my-gateway/nan': { input: 'x', cacheRead: 0, cacheWrite: 0, output: 0 },
+    '../etc/passwd': { input: 1, cacheRead: 1, cacheWrite: 1, output: 1 },
+    'no-slash-key': { input: 1, cacheRead: 1, cacheWrite: 1, output: 1 },
+    'my-gateway/sp ace': { input: 1, cacheRead: 1, cacheWrite: 1, output: 1 },
+  })
+  assert.deepEqual(Object.keys(good).sort(), [
+    'deepseek-official/deepseek-v4.1-flash-expires-on-0910',
+    'my-gateway/vendor:model+preview@2026',
+  ])
+  assert.equal(good['my-gateway/vendor:model+preview@2026'].output, 2)
 })
