@@ -3,7 +3,7 @@
 上下文仪表盘（Context / Billing Dashboard）· DSH 侧边栏插件
 
 > **Version: 0.4.0** · [CHANGELOG](CHANGELOG.md) · License: MIT
-> 状态：**v0.4.0** —— 单测 22/22、host 集成测试 14/14；已在真机 profile
+> 状态：**v0.4.0** —— 单测 22/22、host 集成测试 15/15；已在真机 profile
 > （`~/.dsh/profiles/desktop` 裸包挂载）安装运行；设置页的**渠道与模型清单均随模型选择器动态枚举**
 > （新加的模型可直接录入单价覆盖）；新增 **`deepseek-account` 账号登录渠道**适配
 > （官方价目 + 账号钱包余额，无需 API Key）。

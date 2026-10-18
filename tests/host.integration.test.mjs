@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import * as storage from '../lib/storage.js'
 
 const TMP = mkdtempSync(join(tmpdir(), 'dsh-cd-test-'))
 process.env.DSH_HOME = TMP
@@ -72,6 +73,18 @@ function fire(ev, session) {
 }
 
 before(async () => {
+  // 预置一条「上一次进程/热重载前」的会话记录：热重载后内存只剩新事件，
+  // 会话累计仍须把磁盘历史合并进来（见下面的 reload 回归用例）。
+  storage.appendHistory([{
+    at: '2026-09-03T12:00:00Z',
+    sessionId: 's-reload',
+    sessionKind: 'main',
+    provider: 'deepseek-account',
+    model: 'deepseek-flash',
+    buckets: { inputTokens: 1000, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 },
+    pressureTokens: 1000,
+    contextWindow: 1_000_000,
+  }])
   host.apply(ctx)
   assert.ok(routeSpec, 'route registered')
 })
@@ -292,6 +305,25 @@ test('deepseek-account: signed-out / unavailable account maps to explicit balanc
   r = await call('POST', '/dsh-context-dashboard/refresh-balance', { 'x-dsh-cd-csrf': token }, {})
   assert.equal(r.json.balances['deepseek-account'].available, false)
   assert.equal(r.json.balances['deepseek-account'].reason, 'account-service-unavailable')
+})
+
+test('reload: session totals merge disk history with post-reload events', async () => {
+  // 热重载/重启后内存 sessions 只剩重载后的事件；「整条会话累计」必须把
+  // history.jsonl 里同 sessionId 的旧记录合并进来，不能只看内存。
+  const session = {
+    id: 's-reload',
+    requestContext: () => ({ provider: 'deepseek-account', model: 'deepseek-flash', contextWindow: 1_000_000 }),
+  }
+  fire({ sessionId: 's-reload', type: 'request/header', at: '2026-09-03T12:01:00Z', data: { header: { config: { provider: 'deepseek-account', model: 'deepseek-flash' } }, reason: 'initial' } }, session)
+  fire({ sessionId: 's-reload', type: 'assistant/message', at: '2026-09-03T12:01:01Z', turn: 1, step: 1, data: { turn: 1, step: 1, message: {}, usage: { inputTokens: 2000, outputTokens: 100 } } }, session)
+
+  const r = await call('GET', '/dsh-context-dashboard/status?session=s-reload')
+  assert.equal(r.json.session.id, 's-reload')
+  assert.equal(r.json.sessionTotals.records, 2, '旧记录 + 重载后记录')
+  assert.equal(r.json.sessionTotals.tokensTotal, 1000 + 2100)
+  assert.equal(r.json.context.available, true)
+  assert.equal(r.json.context.usedTokens, 2000) // 最近一次压力仍来自重载后事件
+  assert.equal(r.json.context.contextWindow, 1_000_000)
 })
 
 test('regression: status honors the client-supplied current-session hint (?session=) even with no events for it', async () => {
