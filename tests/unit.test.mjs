@@ -198,6 +198,48 @@ test('deepseek-official: official CNY rates with automatic peak/off-peak selecti
   assert.equal(ov.price.output, 2)
 })
 
+test('deepseek-account: account-authenticated paygo channel with official CNY rates', () => {
+  // deepseek-account 是 DSH 账号登录渠道：与 deepseek-official 同为官方 API、人民币、
+  // 峰谷计价，但凭证来自账号 token，余额来自账号钱包（不是 API key 接口）。
+  assert.equal(pricing.knownChannel('deepseek-account'), true)
+  assert.equal(pricing.channelKind('deepseek-account'), 'paygo')
+  const meta = pricing.channelMeta('deepseek-account')
+  assert.equal(meta.display, 'DeepSeek 账号')
+  assert.equal(meta.currency, 'CNY')
+  assert.equal(meta.auth, 'account')
+  assert.deepEqual(meta.balanceHosts, [])
+  assert.ok(meta.peakSchedule)
+
+  // 当前在售 deepseek-flash = DeepSeek-V4.1-Flash-1017，官方页 2026-10-18 核对
+  const peak = pricing.resolvePrice('deepseek-account', 'deepseek-flash', {}, PEAK_AT)
+  assert.equal(peak.verified, true)
+  assert.equal(peak.source, 'official')
+  assert.equal(peak.window, 'peak')
+  assert.equal(peak.price.currency, 'CNY')
+  assert.equal(peak.price.input, 2)
+  assert.equal(peak.price.cacheRead, 0.04)
+  assert.equal(peak.price.cacheWrite, 2)
+  assert.equal(peak.price.output, 8)
+
+  const off = pricing.resolvePrice('deepseek-account', 'deepseek-flash', {}, OFFPEAK_AT)
+  assert.equal(off.window, 'offpeak')
+  assert.equal(off.price.input, 1)
+  assert.equal(off.price.cacheRead, 0.02)
+  assert.equal(off.price.output, 4)
+
+  const pro = pricing.resolvePrice('deepseek-account', 'deepseek-v4-pro', {}, PEAK_AT)
+  assert.equal(pro.verified, true)
+  assert.equal(pro.price.input, 9)
+  assert.equal(pro.price.cacheRead, 0.3)
+  assert.equal(pro.price.output, 27)
+
+  // 未收录模型也按官方口径兜底，且保持人民币 + 峰谷
+  const fb = pricing.resolvePrice('deepseek-account', 'no-such-model', {}, OFFPEAK_AT)
+  assert.equal(fb.fallback, true)
+  assert.equal(fb.price.currency, 'CNY')
+  assert.equal(fb.window, 'offpeak')
+})
+
 test('isPeakWindow: Beijing weekday windows; weekend and lunch are off-peak', () => {
   const s = pricing.DEEPSEEK_PEAK_SCHEDULE
   const at = (iso) => Date.parse(iso)

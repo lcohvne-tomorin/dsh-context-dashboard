@@ -51,6 +51,8 @@ let credentialsService = null
 let sessionStore = null
 /** 可选：模拟 ctx.llm（模型选择器的渠道权威来源；不设则 host 半回退内置 CHANNELS）。 */
 let llmService = null
+/** 可选：模拟 ctx.deepseekAccount（账号登录渠道的余额来源，非 API key 接口）。 */
+let accountService = null
 const ctx = {
   get(name) {
     if (name === 'webServer') return server
@@ -58,6 +60,7 @@ const ctx = {
     if (name === 'credentials') return credentialsService
     if (name === 'sessions') return sessionStore
     if (name === 'llm') return llmService
+    if (name === 'deepseekAccount') return accountService
     return undefined
   },
   on(type, fn) { if (type === 'session/event') eventHandler = fn; return () => {} },
@@ -196,6 +199,99 @@ test('regression: deepseek-official is a known channel (official CNY, peak/off-p
   // 余额：官方接口已接入，但测试环境无 key（mock ctx 无 credentials、env 无 DEEPSEEK_API_KEY）
   assert.equal(r.json.balances['deepseek-official'].available, false)
   assert.equal(r.json.balances['deepseek-official'].reason, 'no-key')
+})
+
+test('deepseek-account: official CNY rates and balance from the account wallet (no API key)', async () => {
+  const session = {
+    id: 's5',
+    requestContext: () => ({ provider: 'deepseek-account', model: 'deepseek-flash', contextWindow: 1_048_576 }),
+  }
+  fire({ sessionId: 's5', type: 'request/header', at: '2026-09-08T01:59:00Z', data: { header: { config: { provider: 'deepseek-account', model: 'deepseek-flash' } }, reason: 'initial' } }, session)
+  // 高峰（北京 10:00）与空闲（20:00）各一条，按当时档位计价：0.242 + 0.121
+  fire({ sessionId: 's5', type: 'assistant/message', at: '2026-09-08T02:00:00Z', turn: 1, step: 1, data: { turn: 1, step: 1, message: {}, usage: { inputTokens: 100_000, cacheReadTokens: 50_000, outputTokens: 5_000 } } }, session)
+  fire({ sessionId: 's5', type: 'assistant/message', at: '2026-09-08T12:00:00Z', turn: 1, step: 2, data: { turn: 1, step: 2, message: {}, usage: { inputTokens: 100_000, cacheReadTokens: 50_000, outputTokens: 5_000 } } }, session)
+
+  let clientSeen = null
+  accountService = {
+    getBalance(client) {
+      clientSeen = client
+      return Promise.resolve({
+        status: 'ready',
+        value: [
+          { currency: 'CNY', balance: '12.34' },
+          { currency: 'USD', balance: '99.00' },
+        ],
+        bonusWallets: [
+          { currency: 'CNY', balance: '1.66' },
+          { currency: 'USD', balance: '5.00' },
+        ],
+      })
+    },
+  }
+  const realFetch = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), auth: (init && init.headers) ? init.headers.authorization : null })
+    throw new Error('deepseek-account must not use the API-key balance endpoint')
+  }
+  try {
+    const cfgGet = await call('GET', '/dsh-context-dashboard/config')
+    assert.equal(cfgGet.json.channels['deepseek-account'].kind, 'paygo')
+    assert.equal(cfgGet.json.channels['deepseek-account'].display, 'DeepSeek 账号')
+    assert.equal(cfgGet.json.channels['deepseek-account'].auth, 'account')
+
+    const r = await call('GET', '/dsh-context-dashboard/status?session=s5')
+    assert.equal(r.json.session.provider, 'deepseek-account')
+    assert.equal(r.json.session.channelKind, 'paygo')
+    assert.equal(r.json.session.channelDisplay, 'DeepSeek 账号')
+    assert.equal(r.json.session.channelCurrency, 'CNY')
+    assert.equal(r.json.cost.currency, 'CNY')
+    assert.equal(r.json.cost.verified, true)
+    assert.equal(r.json.cost.source, 'official')
+    assert.equal(r.json.cost.fallback, false)
+    assert.ok(Math.abs(r.json.cost.amount - (0.242 + 0.121)) < 1e-9, `cost=${r.json.cost.amount}`)
+
+    // 余额直接来自账号服务（充值 + 赠金，优先人民币），不出网、不读 key
+    const b = r.json.balances['deepseek-account']
+    assert.equal(b.available, true)
+    assert.equal(b.kind, 'paygo')
+    assert.equal(b.source, 'account')
+    assert.equal(b.balance.currency, 'CNY')
+    assert.equal(b.balance.available, 14)
+    assert.equal(b.detail.toppedUp, 12.34)
+    assert.equal(b.detail.granted, 1.66)
+    assert.equal(calls.length, 0, 'account balance must not call the API-key endpoint')
+    assert.ok(clientSeen && typeof clientSeen.version === 'string')
+    assert.ok(clientSeen && typeof clientSeen.locale === 'string')
+    assert.ok(clientSeen && Number.isFinite(clientSeen.timezoneOffsetSeconds))
+
+    // 手动刷新走同一账号路径
+    const refreshed = await call('POST', '/dsh-context-dashboard/refresh-balance', { 'x-dsh-cd-csrf': cfgGet.json.csrf }, {})
+    assert.equal(refreshed.json.balances['deepseek-account'].balance.available, 14)
+  } finally {
+    globalThis.fetch = realFetch
+    accountService = null
+  }
+})
+
+test('deepseek-account: signed-out / unavailable account maps to explicit balance reasons', async () => {
+  const cfgGet = await call('GET', '/dsh-context-dashboard/config')
+  const token = cfgGet.json.csrf
+
+  accountService = { getBalance: async () => null }
+  let r = await call('POST', '/dsh-context-dashboard/refresh-balance', { 'x-dsh-cd-csrf': token }, {})
+  assert.equal(r.json.balances['deepseek-account'].available, false)
+  assert.equal(r.json.balances['deepseek-account'].reason, 'account-signed-out')
+
+  accountService = { getBalance: async () => ({ status: 'failed' }) }
+  r = await call('POST', '/dsh-context-dashboard/refresh-balance', { 'x-dsh-cd-csrf': token }, {})
+  assert.equal(r.json.balances['deepseek-account'].available, false)
+  assert.equal(r.json.balances['deepseek-account'].reason, 'account-balance-failed')
+
+  accountService = null
+  r = await call('POST', '/dsh-context-dashboard/refresh-balance', { 'x-dsh-cd-csrf': token }, {})
+  assert.equal(r.json.balances['deepseek-account'].available, false)
+  assert.equal(r.json.balances['deepseek-account'].reason, 'account-service-unavailable')
 })
 
 test('regression: status honors the client-supplied current-session hint (?session=) even with no events for it', async () => {

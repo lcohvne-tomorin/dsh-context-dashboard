@@ -2,6 +2,8 @@
 # 用途：侧边栏上下文/用量/费用仪表盘——折叠态上下文环形占比，展开态显示
 #       模型 api 渠道、模型名称、上下文使用、本次花费、账户余额（按量渠道）
 #       或 token plan 的本次使用额度/滚动用量/每周用量/每月用量（套餐渠道）。
+#       余额来源按渠道：API key 渠道走官方余额接口；deepseek-account（账号登录）
+#       经 host 的 deepseekAccount 服务读账号钱包，不读 key、不额外出网。
 #       配置与用量历史持久化到 $DSH_HOME/storages/dsh-context-dashboard/。
 # 来源：本地 bare 包，置于 <profile>/node_modules/dsh-context-dashboard/。
 # 约束：host 半必须 inject webServer（否则 apply 可能先于 webserver 激活）；

@@ -2,10 +2,11 @@
 
 上下文仪表盘（Context / Billing Dashboard）· DSH 侧边栏插件
 
-> **Version: 0.3.1** · [CHANGELOG](CHANGELOG.md) · License: MIT
-> 状态：**v0.3.1** —— 单测 21/21、host 集成测试 12/12；已在真机 profile
-> （`~/.dsh/profiles/web` 裸包挂载）安装运行；设置页的**渠道与模型清单均随模型选择器动态枚举**
-> （新加的模型可直接录入单价覆盖）。
+> **Version: 0.4.0** · [CHANGELOG](CHANGELOG.md) · License: MIT
+> 状态：**v0.4.0** —— 单测 22/22、host 集成测试 14/14；已在真机 profile
+> （`~/.dsh/profiles/desktop` 裸包挂载）安装运行；设置页的**渠道与模型清单均随模型选择器动态枚举**
+> （新加的模型可直接录入单价覆盖）；新增 **`deepseek-account` 账号登录渠道**适配
+> （官方价目 + 账号钱包余额，无需 API Key）。
 
 ## 功能
 
@@ -43,7 +44,7 @@
 ### 发布形态（GitHub，§13.2）
 
 ```bash
-# git 依赖按 §4.4 锁死完整 40 位 commit hash（v0.3.1 发布提交）：
+# git 依赖按 §4.4 锁死完整 40 位 commit hash（v0.3.1 发布提交；v0.4.0 推送后按新提交更新）：
 pnpm dsh plugin --profile <profile> add github:lcohvne-tomorin/dsh-context-dashboard#4fdf5f4109132fe10496dc8785c15d7e31786c5e
 ```
 
@@ -70,13 +71,19 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
 
 - 点击底部 pill（环 + `128K/1M`）展开面板；面板随当前会话/渠道自动切换按量/套餐形态。
 - 面板右上刷新按钮：强制重查余额（写端点，带 CSRF + 限流）。
-- **账户余额 / 配额**：`deepseek-official` 已接入官方接口
-  `GET https://api.deepseek.com/user/balance`（面板显示 `¥` 余额与明细）；其余渠道仍为
-  PENDING，显示「余额暂不可用」。测试可用 `DSH_CD_BALANCE_MOCK=1` 驱动模拟余额
-  （仅测试接缝，非生产路径）。
+- **账户余额 / 配额**：
+  - `deepseek-official` 已接入官方接口 `GET https://api.deepseek.com/user/balance`
+    （面板显示 `¥` 余额与明细）；
+  - **`deepseek-account`（账号登录渠道）** 的余额来自 DSH 账号服务
+    `ctx.get('deepseekAccount').getBalance()`，即账号钱包的**充值余额 + 赠金余额**
+    （优先人民币；面板显示合计），**不读 API Key、不直连余额接口、不额外出网**；
+    未登录或账号服务不可用时显示明确原因，登录后下一次轮询/刷新即恢复；
+  - 其余渠道仍为 PENDING，显示「余额暂不可用」。测试可用 `DSH_CD_BALANCE_MOCK=1`
+    驱动模拟余额（仅测试接缝，非生产路径）。
 - **密钥来源**：设置页「余额查询」的渠道清单**与模型选择器同源**（host 半经
   `llm.listProviders()` 动态枚举，不预设渠道；llm 服务不可用时回退内置清单），
-  每个渠道一个 env 名输入框（占位符即推荐名）。取 key 先查 DSH 凭据库（`credentials`
+  每个渠道一个 env 名输入框（占位符即推荐名）；**账号登录渠道（`deepseek-account`）
+  不显示密钥输入框**，其凭证由账号服务持有。取 key 先查 DSH 凭据库（`credentials`
   服务的 ref，即所填 env 名；未填回退推荐名如 `DEEPSEEK_API_KEY`），查不到再回退
   环境变量；**只用于 Authorization 头，不落盘、不进日志、不下发界面**。
 - 计价：默认取内置目录；设置页「单价覆盖表」优先，目录行只读展示（标注 官方/估算/未定价）。
@@ -86,18 +93,22 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
 
 ### 计价目录（需求 3：费用以模型提供商官方文档为准）
 
-见 [docs/pricing-catalog.md](docs/pricing-catalog.md)。**DeepSeek 官方三款在售模型
-（v4-flash / v4-pro / v4-flash-vision-exp）已按官方页核对，人民币计价，并按官方
-「峰谷」口径自动切换**：高峰 = 北京时间周一至周五 09:00–12:00 与 14:00–18:00，
-空闲 = 其余时间（价格为高峰的一半）。「本次花费」按每条记录自己的时间戳取价后累加，
-面板在该行标注当前档位（高峰 / 空闲）。官方页查无此款的模型（`deepseek-v4.1-flash-expires-on-0910`、
-`qwen3.x`、`glm-5.x` 等）以估算占位（`verified:false`），等待权威价校准——校准方式：
-设置页单价覆盖表录入（单一口径、不分峰谷），或把权威价表发回本仓库更新 `lib/pricing.js`。
+见 [docs/pricing-catalog.md](docs/pricing-catalog.md)。**DeepSeek 当前在售模型
+（`deepseek-flash` = DeepSeek-V4.1-Flash-1017、`deepseek-v4-pro`）已按官方页
+（2026-10-18）核对，人民币计价，并按官方「峰谷」口径自动切换**：高峰 = 北京时间
+周一至周五 09:00–12:00 与 14:00–18:00，空闲 = 其余时间（价格为高峰的一半）。
+旧款 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` 的历史价目仍保留，供旧会话
+回算。「本次花费」按每条记录自己的时间戳取价后累加，面板在该行标注当前档位
+（高峰 / 空闲）。官方页查无此款的模型（`qwen3.x`、`glm-5.x` 等）以估算占位
+（`verified:false`），等待权威价校准——校准方式：设置页单价覆盖表录入（单一口径、
+不分峰谷），或把权威价表发回本仓库更新 `lib/pricing.js`。
 
 已识别渠道（`pricing.CHANNELS`）：`qwen-token-plan-cn`（按量）、`opencode-go-full`（套餐）、
-`deepseek-official`（按量 + 峰谷，DeepSeek 官方 API 路由）。渠道不在表内时仪表盘显示
-「未知渠道」且费用为 `–`；新增渠道只需在 `lib/pricing.js` 的 `CHANNELS` / `CATALOG` /
-`CHANNEL_FALLBACK` 三处补条目（峰谷渠道再加 `peakSchedule` + `ratesOffPeak`）。
+`deepseek-official`（按量 + 峰谷，DeepSeek 官方 API Key 路由）、
+**`deepseek-account`（按量 + 峰谷，DSH 账号登录路由；`auth:'account'`，余额走账号钱包）**。
+渠道不在表内时仪表盘显示「未知渠道」且费用为 `–`；新增渠道只需在 `lib/pricing.js` 的
+`CHANNELS` / `CATALOG` / `CHANNEL_FALLBACK` 三处补条目（峰谷渠道再加 `peakSchedule` +
+`ratesOffPeak`；账号余额渠道再加 `auth:'account'` 并在 host 半接入对应服务）。
 
 > 不补目录也能用：设置页只读目录表会自动把「模型选择器里有、内置目录里没有」的模型列出来
 > （按当前生效价展示，无兜底价的渠道标「未定价」），你在「单价覆盖表」为它录入单价即可，
@@ -107,15 +118,19 @@ cp -r dsh-context-dashboard ~/.dsh/profiles/web/node_modules/dsh-context-dashboa
 
 - **联网（外联）**：仅当「余额查询」开启且该渠道在 `pricing.CHANNELS.*.balanceHosts`
   白名单内（`dashscope.aliyuncs.com`…/`opencode.ai`/`api.deepseek.com`）才会向**该渠道
-  官方账户接口**发 HTTPS 请求，用于查余额/配额；其余无任何外联。外联守卫：仅 https、host
-  精确匹配白名单、`redirect: manual`（不跟随）、整体 10s 超时、响应体 ≤512KB、错误仅进
-  服务端日志。计价不从网页实时抓取。
+  官方账户接口**发 HTTPS 请求，用于查余额/配额；其余无任何外联。`deepseek-account`
+  的 `balanceHosts` 为空，余额经本机账号服务读取，**插件自身不为此发起网络请求**。
+  外联守卫：仅 https、host 精确匹配白名单、`redirect: manual`（不跟随）、整体 10s
+  超时、响应体 ≤512KB、错误仅进服务端日志。计价不从网页实时抓取。
+- **账号服务读取**：`deepseek-account` 的余额经 `ctx.get('deepseekAccount').getBalance()`
+  读取账号钱包（充值 + 赠金）；插件只读取该一次调用的返回值，不接触账号 token，也不
+  枚举/转发任何账号资料。
 - **读写文件**：只写 `$DSH_HOME/storages/dsh-context-dashboard/`（`config.json` /
   `history.jsonl` / `fold.json`）；只读配置与自身 history；不读其它插件存储。密钥不落盘。
 - **凭据读取**：余额查询时通过 `ctx.get('credentials').resolve(ref)` 读取**该渠道设置页
   配置的那一个 ref**（默认 `DEEPSEEK_API_KEY` 等）；取不到才回退环境变量。读取到的 key
   只用于该次请求的 `Authorization` 头，不下发界面、不写盘、不进日志；插件不枚举凭据库、
-  不读取其它 ref。
+  不读取其它 ref。`deepseek-account` 不走此路径。
 - **全局 UI 修改**：仅注入一个 `<style data-plugin="dsh-context-dashboard">` 与
   `sidebar.footer.action` / `settings.section` 两处槽位内容，样式全部以 `.cd-root` /
   `.cd-section` 根类门控；停用/卸载即随 fiber disposer 移除（§5.4/§8.2/§11.1）。

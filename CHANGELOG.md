@@ -7,7 +7,32 @@ and semantic versioning.
 
 ### Notes
 
-- 等待权威价校准（qwen/glm 系列与 deepseek 4.1 预览款）；等待 qwen/opencode 余额接口规格。
+- 等待权威价校准（qwen/glm 系列）；等待 qwen/opencode 余额接口规格。
+
+## [0.4.0] - 2026-10-18
+
+### Added
+
+- **`deepseek-account` 渠道适配**：DSH 账号登录路由（`llm-deepseek-account`）现在被识别为
+  `paygo` 渠道（`DeepSeek 账号`，人民币、峰谷计价），面板不再显示「未知渠道」，并给出
+  「本次花费」与余额。
+- **账号钱包余额**：`deepseek-account` 的余额经 host `ctx.get('deepseekAccount').getBalance()`
+  读取账号钱包的**充值 + 赠金**（优先人民币），与官方 API 的余额接口同形展示；不读
+  API Key、不直连余额接口、插件自身不为此出网。未登录/账号服务未就绪/查询失败分别映射为
+  `account-signed-out` / `account-service-unavailable` / `account-balance-failed`。
+- 设置页渠道元信息新增 `auth` 字段；账号渠道不显示 API Key 输入框，改为说明文案。
+- 计价目录补齐 `deepseek-account` 的 `deepseek-flash` / `deepseek-v4-pro`（与官方 API 同价）。
+
+### Changed
+
+- 计价目录按 2026-10-18 官方页更新：在售 `deepseek-flash`（DeepSeek-V4.1-Flash-1017）
+  高峰 2 / 0.04 / 2 / 8 元，空闲减半；旧款 `deepseek-v4-flash` / vision-exp 的旧价保留，
+  供历史会话回算。DeepSeek 兜底价同步为当前 Flash 价。
+
+### Fixed
+
+- 账号服务晚于插件就绪时，首次余额查询可能把 `account-service-unavailable` 缓存整个刷新
+  周期；现对这类瞬时失败不缓存，下一轮立即重试。
 
 ## [0.3.1] - 2026-09-16
 
